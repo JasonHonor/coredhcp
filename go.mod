@@ -6,6 +6,7 @@ require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/hugelgupf/socketpair v0.0.0-20190730060125-05d35a94e714 // indirect
 	github.com/insomniacslk/dhcp v0.0.0-20200621044212-d74cd86ad5b8
+	github.com/jsimonetti/rtnetlink v0.0.0-20200726165900-d699427278d3 // indirect
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
 	github.com/mdlayher/raw v0.0.0-20191009151244-50f2db8cc065 // indirect

@@ -10,6 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+
+	//"log"
 	"math/rand"
 	"net"
 	"os"
@@ -41,12 +44,13 @@ type Record struct {
 // various global variables
 var (
 	// Recordsv4 holds a MAC -> IP address and lease time mapping
-	Recordsv4    map[string]*Record
-	Recordsv6    map[string]*Record
-	LeaseTime    time.Duration
-	filename     string
-	ipRangeStart net.IP
-	ipRangeEnd   net.IP
+	Recordsv4     map[string]*Record
+	Recordsv6     map[string]*Record
+	LeaseTime     time.Duration
+	filename      string
+	ipRangeStart  net.IP
+	ipRangeEnd    net.IP
+	macPrefixFile string
 )
 
 // loadRecords loads the DHCPv6/v4 Records global map with records stored on
@@ -95,9 +99,18 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the range plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	record, ok := Recordsv4[req.ClientHWAddr.String()]
+	sMac := req.ClientHWAddr.String()
+	record, ok := Recordsv4[sMac]
 	if !ok {
-		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
+
+		//filter by mac-prefix-file,line by line.
+		if !filterByMacPrefixFile(sMac, macPrefixFile) {
+			log.Printf("MAC %s is not allowed by file %s.", sMac, macPrefixFile)
+			return nil, true
+		}
+
+		log.Printf("MAC address %s is new, leasing new IPv4 address", sMac)
+
 		rec, err := createIP(ipRangeStart, ipRangeEnd)
 		if err != nil {
 			log.Error(err)
@@ -151,6 +164,12 @@ func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	if err != nil {
 		return Handler6, Handler4, fmt.Errorf("invalid duration: %v", args[3])
 	}
+
+	//read range mac-prefix
+	if len(args) >= 5 {
+		macPrefixFile = args[4]
+	}
+
 	r, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0640)
 	defer func() {
 		if err := r.Close(); err != nil {
@@ -238,4 +257,31 @@ func saveIPAddress(mac net.HardwareAddr, record *Record) error {
 		return err
 	}
 	return nil
+}
+
+func filterByMacPrefixFile(mac, file string) bool {
+	var sMac string = ""
+	sMac = strings.ReplaceAll(mac, ":", "")
+	sMac = strings.ToUpper(sMac)
+
+	//filter by file lines.
+	var sFileContent string = ""
+	f, err := ioutil.ReadFile(file)
+	if err == nil {
+		sFileContent = string(f)
+	} else {
+		return false
+	}
+
+	sFileLines := strings.Split(sFileContent, "\n")
+	var bFound bool = false
+	for _, sFileLine := range sFileLines {
+		//fmt.Printf("Filter 1. %s 2. %s\n", sFileLine, sMac)
+		if strings.HasPrefix(sMac, sFileLine) {
+			bFound = true
+			break
+		}
+	}
+
+	return bFound
 }
