@@ -260,6 +260,11 @@ func saveIPAddress(mac net.HardwareAddr, record *Record) error {
 }
 
 func filterByMacPrefixFile(mac, file string) bool {
+
+	if file == "" {
+		return true
+	}
+
 	var sMac string = ""
 	sMac = strings.ReplaceAll(mac, ":", "")
 	sMac = strings.ToUpper(sMac)
